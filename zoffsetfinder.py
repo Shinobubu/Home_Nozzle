@@ -52,7 +52,7 @@ class zoffsetfinder:
 
 		#add event for aborted homing.
 		
-
+	#Not Implimented
 	def handle_ready(self):				
 		pass
 
@@ -83,7 +83,7 @@ class zoffsetfinder:
 		
 		self.nozzlehoming = False
 		
-
+	#Not Implimented
 	def aborted_home_rails(self,homing_state,rails):		
 		if self.nozzlehoming:
 			self.completed_probing()
@@ -148,8 +148,7 @@ class zoffsetfinder:
 			trysnc = trsync._steppers[ trsync._steppers.index(stepper) ]
 			#debugdata = trysnc._mcu._serial.dump_debug()			
 			# figure out TRSYNC issues
-			#self.gcode.respond_info(str(trysnc._mcu._serial.handlers))
-			
+			#self.gcode.respond_info(str(trysnc._mcu._serial.handlers))			
 			
 
 
@@ -214,75 +213,8 @@ class zoffsetfinder:
 			pass
 		'''
 		#self.completed_probing()
-		
-
-		
-
-	
-
-	def probeNozzleOffset2(self,gcmd):
-		#check if homed
-		if self.z_homing is None:
-			raise gcmd.error("Must home axes first")
-
-		
-			
-		# store original stepper motor endstops		
-		self.toolhead = self.printer.lookup_object('toolhead')
-		kin = self.toolhead.get_kinematics()
-		original_endstops = []
-		for stepper in kin.get_steppers():
-			if stepper.is_active_axis('z'):
-				stepperconfig = self.config.getsection(stepper.get_name())
-				endstopP = stepperconfig.get("endstop_pin")
-				self.gcode.respond_info(" steppers found %s endstop %s" % (stepper.get_name(),endstopP) )
 				
-				self.steppers.append(stepper)
-				original_endstops.append(endstopP)
-
-		
-		# change safe z home offset to start_position
-		
-		#self.configfile.set('safe_z_home','home_xy_position', " , ".join(str(self.startPos)))
-
-		# change endstops for each Z steppers
-		for i in range(len(original_endstops)):
-			self.configfile.set(self.steppers[i].get_name(),"endstop_pin", self.endstop_pin)
-
-
-		# begin homing Z
-		self.gcode.respond_info("Beginning Nozzle Homing ")
-		currentPos = self.toolhead.get_position()
-		self.gcode.respond_info("Curpos is " + str(currentPos)+" probe speed "+str(self.homingspeed))
-		self.toolhead.move([currentPos[0],currentPos[1],self.startZpos,0], self.probing_speed) # height first
-		self.toolhead.move([self.startPos[0],self.startPos[1],self.startZpos,0], self.homingspeed) # position in place
-
-		pre_context = self.pre_template.create_template_context()
-		pre_context['params'] = gcmd.get_command_parameters()
-		try:
-			self.pre_template.run_gcode_from_command(pre_context)
-		except:
-			pass
-		
-
-		# restore original stepper motor endstops
-		for i in range(len(original_endstops)):
-			self.configfile.set(self.steppers[i].get_name(),"endstop_pin", original_endstops[i])
-		# restore original safe z home offset
-		
-		#self.configfile.set('safe_z_home','home_xy_position'," , ".join(str(self.original_home)))
-
-		post_context = self.post_template.create_template_context()
-		post_context['params'] = gcmd.get_command_parameters()
-		try:
-			self.post_template.run_gcode_from_command(post_context)
-		except:
-			pass
-		self.gcode.respond_info("Nozzle Homing Completed ")
-
 	
 def load_config(config):
 	return zoffsetfinder(config)
 
-		
-#configfile.set('stepper_z','position_endstop', "%.3f" % (offset,))		
