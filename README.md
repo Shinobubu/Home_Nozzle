@@ -1,6 +1,6 @@
 # ZOffsetFinder (This doesn't work yet)
 
-To be renamed Nozzle Offset finder. The purpose of this plugin is to use an endstop to find where the nozzle is relative to the end stop even if the nozzle is really hot. 
+To be renamed Nozzle Offset finder. 
 This is a simple Klipper plugin for using an Endstop switch to find the tip of the nozzle relative to the Z-endstop of a 3D printer. 
 inspired by the Z Calibration project. This is intended for people who still uses inductive bed leveling probes and not a microswitch.
 
