@@ -6,8 +6,8 @@ import struct
 from . import manual_probe
 from .homing import Homing
 from mcu import MCU, MCU_trsync, MCU_endstop
-from clocksync import SecondarySync
-import chelper, serialhdl, msgproto
+
+
 
 class home_nozzle:
 	
@@ -25,19 +25,11 @@ class home_nozzle:
 		self.pre_template = gcode_macro.load_template(config, 'pre_gcode')
 		self.post_template = gcode_macro.load_template(config, 'post_gcode')
 		self.endstop_pin = config.get('endstop_pin')	
-		self.fast_feedrate = config.getfloat('fast_feedrate')
-		self.slow_feedrate = config.getfloat('slow_feedrate')
+		self.position_feedrate = config.getfloat('position_feedrate')
 		x_pos,y_pos,z_pos = config.getfloatlist('start_position',3)
 		self.startZpos = z_pos
-		self.startPos = [x_pos,y_pos,z_pos]
-		self.nozzle_hop = config.getfloat('nozzle_hop')		
-		self.homingspeed = self.fast_feedrate #homeconfig.getfloat('speed')
-		self.probing_speed = None # 
-		self.z_homing = None
-		self.second_speed = None
-		self.retract_dist = None
-		self.position_min = None
-		max_lower_distance = config.getfloat('max_lower_distance')
+		self.startPos = [x_pos,y_pos,z_pos]				
+				
 		self.gcode.register_command("HOME_NOZZLE",self.probeNozzleOffset,self.cmd_HELP)
 		self.printer.register_event_handler("homing:home_rails_end",self.handle_home_rails_end)
 		self.printer.register_event_handler("klippy:connect", self.handle_connect)
@@ -71,17 +63,9 @@ class home_nozzle:
 		rails = kin.rails
 		# return endstops
 		for rail in rails:
-			if rail.get_steppers()[0].get_name() == "stepper_z":
-				for r in range(len(rail.get_steppers())):
-					#remove endstops from nozzlepin											
-					stepper = rail.get_steppers()[r]
-					self.remove_stepper_trsync(stepper,self.nozzleEndstopPin)					
-				
-				# change it to original
+			if rail.get_steppers()[0].get_name() == "stepper_z":				
 				rail.endstops = self.original_rail_enstops
-		self.register_endstop(self.nozzleEndstopPin,None,'N')
-		
-		
+		self.register_endstop(self.nozzleEndstopPin,None,'N')				
 		self.nozzlehoming = False
 		
 	#Not Implimented
@@ -93,26 +77,23 @@ class home_nozzle:
 
 	
 	def handle_home_rails_end(self, homing_state, rails):
-		self.gcode.respond_info("end stop MCU status "+str(type(self.nozzleEndstopPin._mcu))+" and "+str(type(self.nozzleEndstopPin._trdispatch)))
+		
 		if self.nozzlehoming:
 			self.completed_probing()
 			self.gcode.respond_info("Nozzle Homing Completed")
+
+			post_context = self.post_template.create_template_context()
+			post_context['params'] = self.gcmd.get_command_parameters()
+			try:
+				self.post_template.run_gcode_from_command(post_context)
+			except:
+				pass				
+			
 		else:
 			for rail in rails:
-				if rail.get_steppers()[0].is_active_axis('z'):
-					mcu_endstop = rail.get_endstops()[0][0]
-					self.gcode.respond_info(" Stepper homing name " + str(rail.get_steppers()[0].get_name() +"   "+ mcu_endstop._pin ))
+				if rail.get_steppers()[0].is_active_axis('z'):					
 					# get homing settings from z rail
-					self.z_homing = rail.position_endstop
-					if self.probing_speed is None:
-						self.probing_speed = rail.homing_speed
-					if self.second_speed is None:
-						self.second_speed = rail.second_homing_speed
-					if self.retract_dist is None:
-						self.retract_dist = rail.homing_retract_dist
-					if self.position_min is None:
-						self.position_min = rail.position_min
-					self.position_z_endstop = rail.position_endstop
+					self.z_homing = rail.position_endstop					
 
 	def register_endstop(self,mcu_endstop,stepper=None,name=None):
 		if name == None:
@@ -127,7 +108,7 @@ class home_nozzle:
 			name = stepper.get_name(short=True)				
 		query_endstops = self.printer.load_object(self.config, 'query_endstops')
 		for i in range(len(query_endstops.endstops)):
-			if(query_endstops.endstops[i][0] == mcu_endtop):
+			if(query_endstops.endstops[i][0] == mcu_endstop):
 				self.gcode.respond_info("Found old MCU in query_endstops removing temporarily")
 				query_endstops.endstops.pop(i)
 				return True
@@ -175,7 +156,7 @@ class home_nozzle:
 
 	def probeNozzleOffset(self,gcmd):		
 		# https://github.com/Klipper3d/klipper/blob/9e765daeedb2adf7641b96882326b80aeeb70c93/klippy/stepper.py#L296
-		
+		self.gcmd = gcmd
 		pre_context = self.pre_template.create_template_context()
 		pre_context['params'] = gcmd.get_command_parameters()
 		try:
@@ -194,27 +175,20 @@ class home_nozzle:
 		self.railToHome.endstops = [(self.nozzleEndstopPin,self.nozzle_pin_name)]
 		
 		# Move nozzle to position.			
-		self.gcode.respond_info("Beginning Nozzle Homing ")
-		currentPos = self.toolhead.get_position()
-		self.gcode.respond_info("Curpos is " + str(currentPos)+" probe speed "+str(self.homingspeed))
-		self.toolhead.manual_move([currentPos[0],currentPos[1],self.startZpos,0], self.probing_speed) # height first
-		self.toolhead.manual_move([self.startPos[0],self.startPos[1],self.startZpos,0], self.homingspeed) # position in place
+		
+		currentPos = self.toolhead.get_position()		
+		self.toolhead.manual_move([currentPos[0],currentPos[1],self.startZpos,0], self.position_feedrate) # height first
+		self.toolhead.manual_move([self.startPos[0],self.startPos[1],self.startZpos,0], self.position_feedrate) # position in place
 		self.toolhead.wait_moves()
-		self.gcode.respond_info("Moved in position ")
+		self.gcode.respond_info("Beginning Nozzle Homing ")
 		axes = [2]
 		homing_state = Homing(self.printer)
 		homing_state.set_axes(axes)
 		kin.home(homing_state)
 
+						
 		
 		
-		self.completed_probing()
-		post_context = self.post_template.create_template_context()
-		post_context['params'] = gcmd.get_command_parameters()
-		try:
-			self.post_template.run_gcode_from_command(post_context)
-		except:
-			pass				
 	
 def load_config(config):
 	return home_nozzle(config)
