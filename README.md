@@ -2,7 +2,7 @@
 
 This is a simple Klipper plugin for using the nozzle and the an endstop to home Z. 
 inspired by the Z Calibration project. This is intended for people who still uses inductive bed leveling probes and not a microswitch.
-You can also use a flexible potentiommeter as a switch providing you hvae a micro controller that opens a pin to HIGH.
+You can also use a flexible potentiometer as a switch providing you hvae a micro controller that opens a pin to HIGH.
 
 Advantages:
 + Allows you to change nozzles with out having to adjust z-offsets
