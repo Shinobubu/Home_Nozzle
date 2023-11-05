@@ -1,4 +1,4 @@
-# Home Nozzle
+# Home Nozzle (Work in progress)
 
 This is a simple Klipper plugin for using the nozzle and the an endstop to home Z. 
 inspired by the Z Calibration project. This is intended for people who still uses inductive bed leveling probes and not a microswitch.
