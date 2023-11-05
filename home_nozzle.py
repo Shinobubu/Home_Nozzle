@@ -11,14 +11,12 @@ from mcu import MCU, MCU_trsync, MCU_endstop
 
 class home_nozzle:
 	
-	cmd_HELP = "Simply home it hommie."
+	cmd_HELP = "Home Z Axis and then run home_nozzle."
 
 	def __init__(self,config):
 		self.nozzlehoming = False
 		self.config = config
-		self.printer = config.get_printer()		
-		self.steppers = []
-		
+		self.printer = config.get_printer()				
 		self.configfile = self.printer.lookup_object('configfile')		
 		self.gcode = self.printer.lookup_object('gcode')
 		gcode_macro = self.printer.load_object(config, 'gcode_macro')
@@ -29,32 +27,35 @@ class home_nozzle:
 		x_pos,y_pos,z_pos = config.getfloatlist('start_position',3)
 		self.startZpos = z_pos
 		self.startPos = [x_pos,y_pos,z_pos]				
-				
+		self.safeHomePosition = [None,None]	
+		self.safeHomeHop = None
+		self.endstopName = "Nozzle"
 		self.gcode.register_command("HOME_NOZZLE",self.probeNozzleOffset,self.cmd_HELP)
 		self.printer.register_event_handler("homing:home_rails_end",self.handle_home_rails_end)
 		self.printer.register_event_handler("klippy:connect", self.handle_connect)
-		self.printer.register_event_handler('klippy:ready',self.handle_ready)
 		
+		self.z_homing = None
+
 		ppins = self.printer.lookup_object('pins')		
 		pin_params = ppins.parse_pin(self.endstop_pin, True, True)		
 		self.nozzleEndstopPin =  ppins.setup_pin('endstop', self.endstop_pin)		
 		# Normalize pin name
 		self.nozzle_pin_name = "%s:%s" % (pin_params['chip_name'], pin_params['pin'])
-		self.register_endstop(self.nozzleEndstopPin,None,'N')		
-
+		self.register_endstop(self.nozzleEndstopPin,None,self.endstopName)		
 		#add event for aborted homing.
-		
-	#Not Implimented
-	def handle_ready(self):				
-		pass
+	
 
-	def handle_connect(self):	
-		#zconfig = config.getsection('stepper_z')
-		#homeconfig = config.getsection('safe_z_home')
-		# store original safe z home offset
-		#self.original_home = homeconfig.getfloatlist('home_xy_position',2)					
+	def handle_connect(self):			
 		self.homing = self.printer.lookup_object("homing")
 		self.toolhead = self.printer.lookup_object('toolhead')
+		try:
+			self.safezhome = self.printer.lookup_object("safe_z_home")
+			self.safeHomePosition = [self.safezhome.home_x_pos, self.safezhome.home_y_pos]
+			self.safeHomeHop = self.safezhome.z_hop
+			print(" Safe Home Found %s %s" % (self.safezhome.home_x_pos, self.safezhome.home_y_pos))						
+		except:
+			self.gcode.respond_info("No Safe Zone Detected")
+
 		self.initialize_nozzle_pin_steppers()
 
 	def completed_probing(self):				
@@ -65,8 +66,12 @@ class home_nozzle:
 		for rail in rails:
 			if rail.get_steppers()[0].get_name() == "stepper_z":				
 				rail.endstops = self.original_rail_enstops
-		self.register_endstop(self.nozzleEndstopPin,None,'N')				
-		self.nozzlehoming = False
+
+		if 	self.safeHomeHop != None:
+			self.safezhome.home_x_pos = self.safeHomePosition[0]
+			self.safezhome.home_y_pos = self.safeHomePosition[1]
+			self.safezhome.z_hop = self.safezhome.z_hop			
+			self.nozzlehoming = False
 		
 	#Not Implimented
 	def aborted_home_rails(self,homing_state,rails):		
@@ -101,8 +106,6 @@ class home_nozzle:
 		query_endstops = self.printer.load_object(self.config, 'query_endstops')
 		query_endstops.register_endstop(mcu_endstop, name)
 		
-
-
 	def unregister_endstop(self,mcu_endstop,stepper=None,name=None):
 		if name == None:
 			name = stepper.get_name(short=True)				
@@ -170,7 +173,10 @@ class home_nozzle:
 			raise gcmd.error("Must home axes first")
 
 		self.nozzlehoming = True
-		
+		if self.safeHomeHop != None:
+			self.safezhome.home_x_pos = self.startPos[0]
+			self.safezhome.home_y_pos = self.startPos[1]
+			self.safezhome.z_hop = self.startZpos		
 		# swap rail endstops
 		self.railToHome.endstops = [(self.nozzleEndstopPin,self.nozzle_pin_name)]
 		
