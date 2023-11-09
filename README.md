@@ -8,6 +8,11 @@ Advantages:
 + Allows you to change nozzles with out having to adjust z-offsets
 + Thermal expansion of the nozzle will no longer be an issue.
 + Z Calibration will now just be part of a seldom maintenance cycle instead of having to do it more often
+
+Limitations:
++ (probably) Doesn't work with Delta motion system
++ (Untested) Tilt-Z not supported
+
   
 Installation can be found in the [Wiki](https://github.com/Shinobubu/Home_Nozzle/wiki)
 
