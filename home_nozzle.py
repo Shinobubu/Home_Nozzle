@@ -71,7 +71,8 @@ class home_nozzle:
 			self.safezhome.home_x_pos = self.safeHomePosition[0]
 			self.safezhome.home_y_pos = self.safeHomePosition[1]
 			self.safezhome.z_hop = self.safezhome.z_hop			
-			self.nozzlehoming = False
+
+		self.nozzlehoming = False
 		
 	#Not Implimented
 	def aborted_home_rails(self,homing_state,rails):		
@@ -87,8 +88,7 @@ class home_nozzle:
 			self.completed_probing()
 			self.gcode.respond_info("Nozzle Homing Completed")
 
-			post_context = self.post_template.create_template_context()
-			post_context['params'] = self.gcmd.get_command_parameters()
+			post_context = self.post_template.create_template_context()			
 			try:
 				self.post_template.run_gcode_from_command(post_context)
 			except:
@@ -98,7 +98,10 @@ class home_nozzle:
 			for rail in rails:
 				if rail.get_steppers()[0].is_active_axis('z'):					
 					# get homing settings from z rail
-					self.z_homing = rail.position_endstop					
+					self.z_homing = rail.position_endstop		
+					# now perform nozzle homing after Z is homed
+					if self.nozzlehoming == False:						
+						self.probeNozzleOffset()			
 
 	def register_endstop(self,mcu_endstop,stepper=None,name=None):
 		if name == None:
@@ -153,15 +156,14 @@ class home_nozzle:
 				for r in range(len(rail.get_steppers())):					
 					stepper = rail.get_steppers()[r]					
 					self.nozzleEndstopPin.add_stepper(stepper)	
+				self.original_rail_enstops = rail.endstops				
 
-				self.original_rail_enstops = rail.endstops
 
-
-	def probeNozzleOffset(self,gcmd):		
+	def probeNozzleOffset(self,gcmd=None):		
 		# https://github.com/Klipper3d/klipper/blob/9e765daeedb2adf7641b96882326b80aeeb70c93/klippy/stepper.py#L296
-		self.gcmd = gcmd
+		#self.gcmd = gcmd
 		pre_context = self.pre_template.create_template_context()
-		pre_context['params'] = gcmd.get_command_parameters()
+		#pre_context['params'] = gcmd.get_command_parameters()
 		try:
 			self.pre_template.run_gcode_from_command(pre_context)
 		except:
@@ -170,7 +172,9 @@ class home_nozzle:
 
 		kin = self.toolhead.get_kinematics()
 		if self.z_homing is None:
-			raise gcmd.error("Must home axes first")
+			self.gcode.respond_info("Must home Z axes first")
+			return False
+			#raise gcmd.error("Must home Z axes first")
 
 		self.nozzlehoming = True
 		if self.safeHomeHop != None:
@@ -191,6 +195,7 @@ class home_nozzle:
 		homing_state = Homing(self.printer)
 		homing_state.set_axes(axes)
 		kin.home(homing_state)
+		return True
 
 						
 		
