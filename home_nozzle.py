@@ -187,10 +187,12 @@ class home_nozzle:
 		# Move nozzle to position.			
 		
 		currentPos = self.toolhead.get_position()		
-		self.toolhead.manual_move([currentPos[0],currentPos[1],self.startZpos,0], self.position_feedrate) # height first
-		self.toolhead.manual_move([self.startPos[0],self.startPos[1],self.startZpos,0], self.position_feedrate) # position in place
+		
+		self.toolhead.manual_move([currentPos[0],currentPos[1],self.startZpos,currentPos[3]], self.position_feedrate) # height first
+		self.toolhead.manual_move([self.startPos[0],self.startPos[1],self.startZpos,currentPos[3]], self.position_feedrate) # position in place
+				
 		self.toolhead.wait_moves()
-		self.gcode.respond_info("Beginning Nozzle Homing ")
+		self.gcode.respond_info("Beginning Nozzle Homing")
 		axes = [2]
 		homing_state = Homing(self.printer)
 		homing_state.set_axes(axes)
