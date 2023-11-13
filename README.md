@@ -1,3 +1,4 @@
+![Optical_Home_Nozzle](https://github.com/Shinobubu/Home_Nozzle/assets/14949931/80f4e24b-fbe0-4d7c-a9a9-52f536c64411)
 # Home Nozzle (Work in progress)
 
 This is a simple Klipper plugin for using the nozzle and the an endstop to home Z. 
