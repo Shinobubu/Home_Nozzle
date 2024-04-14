@@ -121,19 +121,23 @@ class home_nozzle:
 		return False
 	
 	def clear_stepper_trsync(self,mcu_endstop):
-		mcu_endstop._trsyncs = [mcu_endstop._trsyncs[0]] 		
+		# trysncs been replaced with TriggerDispatch
+  		# https://github.com/Klipper3d/klipper/blob/master/klippy/mcu.py
+		mcu_endstop._dispatch._trsyncs = [mcu_endstop._dispatch._trsyncs[0]] 
+		return False
 
-	def remove_stepper_trsync(self,stepper,mcu_endstop):
-		#https://github.com/Klipper3d/klipper/blob/9e765daeedb2adf7641b96882326b80aeeb70c93/klippy/mcu.py#L223
-		trsyncs = {trsync.get_mcu(): trsync for trsync in mcu_endstop._trsyncs}
+	def remove_stepper_trsync(self,stepper,mcu_endstop):		
+		#https://github.com/Klipper3d/klipper/blob/master/klippy/mcu.py#L229
+		trsyncs = {trsync.get_mcu(): trsync for trsync in mcu_endstop._dispatch._trsyncs}
 		trsync = trsyncs.get(stepper.get_mcu())
 		if stepper in trsync._steppers:			
 			trsync._steppers.remove(stepper)
+		
 
 	def add_stepper_trsync(self,stepper,mcu_endstop):
-		#https://github.com/Klipper3d/klipper/blob/9e765daeedb2adf7641b96882326b80aeeb70c93/klippy/mcu.py#L223
+		#https://github.com/Klipper3d/klipper/blob/master/klippy/mcu.py#L229
 		mcu_endstop.add_stepper(stepper)
-		trsyncs = {trsync.get_mcu(): trsync for trsync in mcu_endstop._trsyncs}
+		trsyncs = {trsync.get_mcu(): trsync for trsync in mcu_endstop._dispatch._trsyncs}
 		trsync = trsyncs.get(stepper.get_mcu())
 		if stepper in trsync._steppers:
 			trysnc = trsync._steppers[ trsync._steppers.index(stepper) ]
